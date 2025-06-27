@@ -68,19 +68,19 @@ flowchart TB
 
     subgraph ESP32["ESP32-WROOM"]
         direction TB
-        SP["Sensor Polling Task\n• FreeRTOS Prio 3\n• 20Hz\n• <5ms"] -->|Raw Measurements| B["Double-Buffered Data Store"]
-        B --> KF["Kalman Filter Task\n• FreeRTOS Prio 3\n• 20Hz\n• 1-2ms/sensor\n• Adaptive Q/R Tuning"]
-        KF -->|Filtered Data| F["Ring Buffer"]
-        F --> RP["ROS Publishing Task\n• FreeRTOS Prio 2\n• 20Hz\n• <5ms"]
-        RP -->|Micro-ROS| M
+        SP["Sensor Polling\n(20Hz)"] --> KF["Kalman Filter\n(Adaptive)"]
+        KF --> RP["ROS 2 Publisher"]
+        RP --> M["micro-ROS Client"]
     end
 
+
+
     M["micro-ROS Client\n(Serial/UDP)"] --> R["ROS 2 Agent"]
-    R --> T1["Topic: /ultrasonic_sensor/downward/filtered\nMsg: sensor_msgs/Range"]
-    R --> T2["Topic: /ultrasonic_sensor/forward/filtered\nMsg: sensor_msgs/Range"]
-    R --> T3["Topic: /ultrasonic_sensor/left/filtered\nMsg: sensor_msgs/Range"]
-    R --> T4["Topic: /ultrasonic_sensor/right/filtered\nMsg: sensor_msgs/Range"]
-    R --> T5["Topic: /ultrasonic_sensor/back/filtered\nMsg: sensor_msgs/Range"]
+    R --> T1["Topic: /ultrasonic_sensor/downward/filtered"]
+    R --> T2["Topic: /ultrasonic_sensor/forward/filtered"]
+    R --> T3["Topic: /ultrasonic_sensor/left/filtered"]
+    R --> T4["Topic: /ultrasonic_sensor/right/filtered"]
+    R --> T5["Topic: /ultrasonic_sensor/back/filtered"]
 ```
 
 
