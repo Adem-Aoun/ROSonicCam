@@ -1,20 +1,101 @@
 # ROSonicCam
 
-ESP32-based ROS 2 ultrasonic sensor node with servo-controlled camera, adaptive Kalman filtering, and FreeRTOS scheduling.
+**ROSonicCam** is a lightweight, ROS 2-compatible embedded sensor node designed for directional obstacle detection and camera actuation in drones and mobile robots. Built on the **ESP32 microcontroller**, it combines **ultrasonic sensing**, **servo-based camera control**, and **adaptive Kalman filtering**, all managed under a **FreeRTOS**-driven architecture.
 
-## Features
+> 🔧 The current release is implemented with the **Arduino framework** for fast prototyping and ease of development.  
+> 🚀 A future release will be based on **ESP-IDF**, bringing improved efficiency, memory management, and low-level hardware integration.
 
-- 🚀 Multi-directional HC-SR04 sensor support (5 directions)
-- 🎯 Adaptive Kalman filter for noise reduction
-- 🧠 Real-time FreeRTOS task scheduling
-- 🎥 Servo-based camera control (via ROS 2 service)
-- 🔌 micro-ROS compatible with Serial/UDP
-- 🤖 Designed for drones, mobile robots, and embedded ROS 2 applications
+---
 
-## Tags
+## 🌟 Key Features
 
-`ros2` `esp32` `freertos` `ultrasonic` `servo-control` `kalman-filter` `robotics` `drones` `obstacle-avoidance` `micro-ros`
+- 🔌 **micro-ROS** integration with ROS 2 (Humble, Foxy, etc.)
+- 📡 **Five-directional** HC-SR04 ultrasonic sensing (front, back, left, right, downward)
+- 🧠 **Adaptive Kalman filtering** for real-time noise suppression
+- ⏱️ **Non-blocking FreeRTOS multitasking** (20 Hz)
+- 🎥 **Servo-controlled camera positioning** (PWM, ROS 2 service)
+- 🩺 **System diagnostics** published via `/diagnostics`
+- 🤖 Designed for UAVs, rovers, and edge robotics
 
-## Repository
+---
 
-[View the GitHub repository](https://github.com/Adem-Aoun/ROSonicCam)
+## 📷 Hardware Overview
+
+| Component        | Description                         |
+|------------------|-------------------------------------|
+| **MCU**          | ESP32-WROOM                         |
+| **Sensors**      | 5× HC-SR04 ultrasonic modules       |
+| **Actuator**     | Servo motor (PWM, GPIO 26)          |
+| **Transport**    | micro-ROS over Serial or UDP        |
+| **Agent**        | ROS 2 agent running on host machine |
+
+---
+
+## 🔗 Repository
+
+👉 [Browse the code on GitHub](https://github.com/Adem-Aoun/ROSonicCam)
+
+---
+
+## 🚀 ROS 2 Interfaces
+
+| Interface                      | Type                                         | Description                        |
+|-------------------------------|----------------------------------------------|------------------------------------|
+| `/ultrasonic_sensor/*/raw`    | `sensor_msgs/msg/Range`                      | Unfiltered HC-SR04 readings        |
+| `/ultrasonic_sensor/*/filtered` | `sensor_msgs/msg/Range`                    | Kalman-filtered distance estimates |
+| `/diagnostics`                | `diagnostic_msgs/msg/DiagnosticStatus`       | Real-time health reporting         |
+| `/servo_cam_service`          | `servocam_interfaces/srv/Servocam`           | Set servo angle (0°–180°)          |
+
+---
+
+## 📘 Quick Start
+
+1. 🔧 **Flash the firmware (Arduino-based)**:
+   ```bash
+   pio run -t upload
+    ````
+
+2. 🔌 **Start the micro-ROS Agent** on your PC:
+
+   ```bash
+   ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyUSB0 -b 115200
+   ```
+
+3. 📡 **View filtered distance data**:
+
+   ```bash
+   ros2 topic echo /ultrasonic_sensor/forward/filtered
+   ```
+
+4. 🎥 **Control camera via servo**:
+
+   ```bash
+   ros2 service call /servo_cam_service servocam_interfaces/srv/Servocam "{angle_deg: 90.0}"
+   ```
+
+---
+
+## 🏷️ Tags / Keywords
+
+`ros2` · `esp32` · `arduino` · `freertos` · `ultrasonic` · `kalman-filter` · `servo-control`
+`robotics` · `drones` · `obstacle-avoidance` · `micro-ros` · `embedded-systems`
+
+---
+
+## 📅 Roadmap: ESP-IDF & RP2040 Support
+
+We are actively developing an **ESP-IDF-based version** of ROSonicCam, which will offer:
+
+* ⚡ Optimized memory usage and task scheduling
+* 🛠️ Low-level access to ESP32 peripherals and interrupts
+* 📉 Reduced latency and better servo response
+* 🧠 Cleaner abstraction for multi-platform support (ESP-IDF, RP2040,..)
+
+📌 **Star** this repo to follow updates and releases!
+
+---
+
+## 📄 License
+
+Licensed under the [MIT License](https://opensource.org/licenses/MIT)
+
