@@ -49,38 +49,14 @@ flowchart LR
     microROS --> ROS2["ROS 2 Agent & Topics"]
 ```
 
-```mermaid
-graph LR
-    D[Downward HC-SR04]
-    F[Forward HC-SR04]
-    L[Left HC-SR04]
-    R[Right HC-SR04]
-    B[Back HC-SR04]
-    VD[Voltage Divider]
-    ESP[ESP32 Wroom]
-    RTOS[FreeRTOS]
-    Agent[micro-ROS Agent]
-    Nodes[ROS2 Nodes]
-
-    D --> VD
-    F --> VD
-    L --> VD
-    R --> VD
-    B --> VD
-    VD --> ESP
-    ESP --> RTOS
-    RTOS --> Agent
-    Agent --> Nodes
-```
-
-````
-
 ## 3. Electronics Design <a name="electronics-design"></a>
-**Voltage Divider**  
-5 V echo → R1 (1.8 kΩ) → node → R2 (3.3 kΩ) → GND  
-```math
-V_out = V_in × R2/(R1+R2) ≈ 5 V × 3.3/5.1 ≈ 3.2 V
-````
+
+**Voltage Divider**
+5 V echo → R1 (1.8 kΩ) → node → R2 (3.3 kΩ) → GND
+
+```text
+V_out = V_in × R2 / (R1 + R2) ≈ 5 V × 3.3 / 5.1 ≈ 3.2 V
+```
 
 ## 4. Software Architecture <a name="software-architecture"></a>
 
@@ -103,28 +79,23 @@ V_out = V_in × R2/(R1+R2) ≈ 5 V × 3.3/5.1 ≈ 3.2 V
 #include <math.h>
 ```
 
-### FreeRTOS Task Prioritization
+### FreeRTOS Task Scheduling
 
-| Task                 | Priority | Interval      | Responsibilities                                         |
-| -------------------- | -------- | ------------- | -------------------------------------------------------- |
-| Sensor Reading Task  | 3        | 50 ms (20 Hz) | Ping sensors, apply Kalman filter, store results         |
-| Publishing Task      | 2        | 50 ms (20 Hz) | Serialize and publish raw/filtered Range messages        |
-| Main Loop / Executor | 1        | \~10 ms spin  | Handle ROS2 services, publish diagnostics, executor loop |
+```text
+Timeline (50 ms cycle):
 
-```mermaid
-gantt
-    title Task Scheduling
-    dateFormat  ms
-    section High Priority (3)
-    Sensor Read    :a1, 0, 10
-    Kalman Update  :a2, after a1, 10
-    Data Store     :a3, after a2, 5
-    section Medium Priority (2)
-    Serialize      :b1, 0, 15
-    ROS Publish    :b2, after b1, 10
-    section Main Loop (1)
-    Service Handle :c1, 10, 8
-    Executor Spin  :c2, after c1, 12
+Time →    0       10      20      30      40      50
+------------------------------------------------------
+Sensor  |██████████████                         |
+Kalman  |    ██████████████                     |
+Publish |          ██████████████               |
+Executor|             ███████████              |
+
+Priorities:
+  Sensor  - High (3)
+  Kalman  - High (3)
+  Publish - Medium (2)
+  Executor- Low (1)
 ```
 
 ### Inter-task Synchronization
@@ -203,4 +174,5 @@ lib_deps =
 
 ## 11. License <a name="license"></a>
 
-MIT © 
+MIT © Adem Oussama
+
