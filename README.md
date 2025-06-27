@@ -1,4 +1,4 @@
-I'll improve the README.md with a comprehensive system diagram and fix the voltage divider section. Here's the enhanced documentation:
+Here's the finalized README.md incorporating all corrections, clarifications, and enhancements based on the code and feedback:
 
 ```markdown
 # SkySonar
@@ -6,9 +6,14 @@ I'll improve the README.md with a comprehensive system diagram and fix the volta
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/Adem-Aoun/SkySonar/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**ESP32-based multi-directional ultrasonic sensor node for micro‑ROS**
+**ESP32-based multi-directional ultrasonic sensor node for micro-ROS**
 
-SkySonar is a research-grade embedded system delivering robust range sensing for drones and robotics. It integrates five HC‑SR04 sensors, adaptive Kalman filtering, real-time FreeRTOS scheduling, and micro-ROS connectivity—encapsulated in a concise PlatformIO/Arduino project. This README doubles as reference documentation suitable for academic inclusion.
+SkySonar provides deterministic range sensing with adaptive filtering and ROS 2 integration. It features:
+- Five HC-SR04 sensors arranged omnidirectionally
+- Real-time Kalman filtering with adaptive noise estimation
+- FreeRTOS task prioritization for timing guarantees
+- Servo control via ROS 2 services
+- Diagnostic monitoring and hardware validation
 
 ---
 
@@ -28,7 +33,13 @@ SkySonar is a research-grade embedded system delivering robust range sensing for
 ---
 
 ## 1. Introduction <a name="introduction"></a>
-SkySonar provides continuous 360° distance awareness via five HC‑SR04 sensors. It uses an adaptive Kalman filter to smooth measurement noise and FreeRTOS to guarantee deterministic timing. Data is published over ROS 2 topics in real time, facilitating seamless integration into research autonomy stacks.
+SkySonar delivers high-fidelity range measurements for robotics applications through:
+- **Sensor Fusion**: Five HC-SR04 units arranged downward, forward, left, right, and backward
+- **Noise Reduction**: Adaptive Kalman filtering with runtime-tuned Q/R values
+- **Real-Time OS**: FreeRTOS task prioritization for sensor polling (high priority) and publishing (medium priority)
+- **ROS 2 Integration**: Raw and filtered `/ultrasonic_sensor/<direction>` topics + `/diagnostics` status reporting
+
+---
 
 ## 2. System Architecture <a name="system-architecture"></a>
 ```mermaid
@@ -49,16 +60,15 @@ graph LR
         ESP[ESP32 Wroom]:::mcu
         RTOS[FreeRTOS]:::os
             RTOS --> T1[Sensor Task]:::task
-            RTOS --> T2[Publisher Task]:::task
-            RTOS --> T3[Service Task]:::task
+            RTOS --> T2[Publish Task]:::task
     end
     
     subgraph ROS Ecosystem
         ROS2[ROS 2 Foxy/Humble]:::ros
-            T3 --> ST[Servocam Service]
-            T2 --> TP1[/raw\nRange Msg/]:::topic
-            T2 --> TP2[/filtered\nRange Msg/]:::topic
-            T2 --> DP[/diagnostics\nStatus/]:::topic
+            ROS2 --> TP1[/raw\nRange Msg/]:::topic
+            ROS2 --> TP2[/filtered\nRange Msg/]:::topic
+            ROS2 --> DP[/diagnostics\nStatus/]:::topic
+            ROS2 --> SV[servo_cam_service]:::service
     end
     
     Sensor Array --> VD
@@ -72,11 +82,14 @@ graph LR
     classDef task fill:#ff9,stroke:#333;
     classDef ros fill:#f9f,stroke:#333;
     classDef topic fill:#bfb,stroke:#333;
+    classDef service fill:#fbb,stroke:#333;
 ```
+
+---
 
 ## 3. Electronics Design <a name="electronics-design"></a>
 ### Voltage Divider Circuit
-To interface 5V echo outputs with 3.3V ESP32 GPIOs, each echo pin uses a resistor divider:
+⚠️ **Important Note**: GPIOs used (16,14,22,35,25) require signal conditioning unless your ESP32 variant explicitly supports 5V-tolerant inputs.
 
 ```mermaid
 circuit LR
@@ -88,41 +101,36 @@ circuit LR
     class R1,R2 resistor;
 ```
 
-**Calculation**:
-```
-V_out = V_in × R2 / (R1 + R2)
-      = 5V × 3.3kΩ / (1.8kΩ + 3.3kΩ)
-      ≈ 3.24V (safe for 3.3V GPIO)
-```
-
 **Component Specifications**:
 - R1: 1.8kΩ ±1% tolerance
 - R2: 3.3kΩ ±1% tolerance
 - Max current: 5V / 5.1kΩ ≈ 0.98mA
 
+---
+
 ## 4. Software Architecture <a name="software-architecture"></a>
 ### Task Scheduling
 ```mermaid
 gantt
-    title FreeRTOS Task Scheduling
+    title FreeRTOS Task Prioritization
     dateFormat  ms
     axisFormat %L
     
-    section Sensor Task
+    section High Priority
     Sensor Polling     :a1, 0, 10
     Kalman Update      :a2, after a1, 10
     Data Storage       :a3, after a2, 5
     
-    section Publisher Task
+    section Medium Priority
     Data Serialization :b1, 0, 15
     ROS Publishing     :b2, after b1, 10
     
-    section Service Task
+    section Main Loop
     Service Handling   :c1, 10, 8
-    Servo Control      :c2, after c1, 12
+    Executor Spin      :c2, after c1, 12
 ```
 
-### Critical Components
+### Key Implementation Details
 ```c
 // Shared memory protection
 SemaphoreHandle_t data_mutex = xSemaphoreCreateMutex();
@@ -146,6 +154,8 @@ rclc_publisher_init(
 );
 ```
 
+---
+
 ## 5. Kalman Filter Algorithm <a name="kalman-filter-algorithm"></a>
 ```mermaid
 flowchart TD
@@ -154,6 +164,8 @@ flowchart TD
     Update["Innovation = z - x_prior\nK = P_prior / (P_prior + R)\nx = x_prior + K*Innovation\nP = (1-K)*P_prior"] --> Adapt
     Adapt["R = (1-α)R_prev + α*Innovation²\nQ = max(Q_min, variance*0.1)"] --> End[Output]
 ```
+
+---
 
 ## 6. Hardware Setup <a name="hardware-setup"></a>
 **Pin Mapping**:
@@ -166,22 +178,26 @@ flowchart TD
 | Back       | GPIO21   | GPIO25   |
 | **Servo**  | GPIO26   |          |
 
+> ⚙️ Configuration Tip: TRIG/ECHO pins are defined in `TRIG_PINS[]` and `ECHO_PINS[]` arrays for easy reassignment.
+
 **Power Requirements**:
 - 5V/2A power supply
 - Decoupling capacitor: 100μF across 5V/GND
 
+---
+
 ## 7. PlatformIO Build & Deployment <a name="platformio-build--deployment"></a>
 ```ini
-; platformio.ini
 [env:upesy_wroom]
 platform = espressif32
 board = upesy_wroom
 framework = arduino
 lib_deps = 
-    adafruit/Adafruit NeoPixel@^1.10.6
     hideakitai/NewPing@^1.9.4
     micro-ROS/micro_ros_platformio@^0.3.0
 ```
+
+---
 
 ## 8. Operation & Validation <a name="operation--validation"></a>
 **Diagnostic Checks**:
@@ -202,10 +218,11 @@ response:
 servocam_interfaces.srv.Servocam_Response(success=True, message="Servo position set successfully")
 ```
 
+---
+
 ## 9. API Reference <a name="api-reference"></a>
-**Range Message**:
+**Filtered Range Message**:
 ```yaml
-# sensor_msgs/Range
 header:
   stamp: {sec: 0, nanosec: 0}
   frame_id: "ultrasonic_downward"
@@ -216,13 +233,16 @@ max_range: 4.0
 range: 1.85
 ```
 
+---
+
 ## 10. Troubleshooting <a name="troubleshooting"></a>
 | Symptom               | Solution                          |
 |-----------------------|-----------------------------------|
-| No ROS 2 topics       | Check micro-ROS agent connection |
-| Servo not responding  | Verify PWM configuration         |
-| Intermittent readings | Inspect voltage divider circuits |
+| No ROS 2 topics       | Verify micro-ROS agent connection |
+| Servo not responding  | Check PWM configuration (duty cycle delta >10) |
+| Intermittent readings | Inspect voltage divider circuits  |
 
-## 11. License 
+---
+
+## 11. License <a name="license"></a>
 MIT © 2023 
-```
