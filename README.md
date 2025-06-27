@@ -1,6 +1,7 @@
 📘 [Live Project Website](https://adem-aoun.github.io/ROSonicCam)
 # ROSonicCam
 ESP32 + micro-ROS 2 node featuring directional ultrasonic sensing, Kalman filtering, FreeRTOS scheduling, and servo camera control for robotics and drones.
+
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/Adem-Aoun/SkySonar/actions)
 ![ROS2](https://img.shields.io/badge/ROS2-Humble-blue?style=flat-square)
 ![ESP32](https://img.shields.io/badge/Platform-ESP32-black?style=flat-square)
