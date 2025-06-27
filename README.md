@@ -44,6 +44,9 @@ graph LR
 
 ## 2. System Architecture <a name="system-architecture"></a>
 
+
+## 2. System Architecture <a name="system-architecture"></a>
+
 ```mermaid
 flowchart TB
     S1[Downward Sensor\nHC-SR04] --> SP
@@ -77,6 +80,8 @@ flowchart TB
     class B,F buffer;
     class M,R,T1,T2,T3,T4,T5 ros;
 ```
+
+---
 
 ---
 
