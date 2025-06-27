@@ -13,7 +13,13 @@
 
 
 **An ESP32-based multi-directional ultrasonic sensor platform with adaptive Kalman filtering, real-time FreeRTOS scheduling, and integrated servo control for camera positioning. Designed for seamless ROS 2 integration, ideal for autonomous robotics, UAV obstacle avoidance, and intelligent environmental perception.**
+## Features
 
+- 📡 Five-direction ultrasonic obstacle sensing
+- 🔧 Adaptive Kalman filter (tunable Q/R, windowed variance)
+- ⏱️ FreeRTOS-based concurrent tasks (sensor polling, ROS 2 publishing)
+- 🎥 Servo-based camera angle control (ROS 2 service)
+- 🔌 Fully ROS 2 (micro-ROS) compatible over Serial/UDP
 ---
 
 ## 📋 Table of Contents
