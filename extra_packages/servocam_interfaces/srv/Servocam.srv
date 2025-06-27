@@ -1,0 +1,4 @@
+float64 angle_deg
+---
+bool success
+string message

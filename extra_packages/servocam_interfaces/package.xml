@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>servocam_interfaces</name>
+  <version>0.0.0</version>
+  <description>Servo control interface</description>
+
+  <maintainer email="user@example.com">User</maintainer>
+  <license>Apache-2.0</license>
+
+  <!-- Ament build tool -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Service generation dependencies -->
+  <build_depend>rosidl_default_generators</build_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+
+  <!-- THIS LINE MUST APPEAR HERE (top-level), not inside <export> -->
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
+  <export>
+    <!-- format-2 way to tell Ament how to build -->
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

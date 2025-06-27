@@ -1,234 +1,250 @@
 # SkySonar
 
+[![Build](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/Adem-Aoun/SkySonar/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 **ESP32-based multi-directional ultrasonic sensor node for micro‑ROS**
 
-SkySonar is a high-performance PlatformIO/Arduino project for embedded drones and robotics, providing reliable range sensing via five HC‑SR04 sensors. Leveraging native FreeRTOS, an adaptive Kalman filter, and micro‑ROS integration, SkySonar delivers low-latency 20 Hz distance measurements—both raw and filtered—plus real-time health diagnostics and a future-proof servo control service.
+SkySonar is a research-grade embedded system delivering robust range sensing for drones and robotics. It integrates five HC‑SR04 sensors, adaptive Kalman filtering, real-time FreeRTOS scheduling, and micro-ROS connectivity—encapsulated in a concise PlatformIO/Arduino project. This README doubles as reference documentation suitable for academic inclusion.
 
 ---
 
-## 🚀 Key Features
+## 📋 Table of Contents
 
-* **Multi‑Sensor Coverage**
-  Five directional HC‑SR04 sensors (`downward`, `forward`, `left`, `right`, `back`) for full situational awareness.
+1. [Introduction](#introduction)
+2. [System Architecture](#system-architecture)
+3. [Electronics Design](#electronics-design)
+4. [Software Architecture](#software-architecture)
 
-* **Adaptive Kalman Filtering**
-  Implements a 1D Kalman filter per sensor with:
-
-  * Online estimation of measurement noise (R) via exponential moving variance
-  * Dynamic process noise (Q) scaling based on measurement window variance
-  * Robust initialization and gain computation
-
-* **Deterministic FreeRTOS Tasks**
-
-  * **sensorReadingTask**: Non‑blocking `NewPing` reads and Kalman update at **20 Hz**
-  * **publishingTask**: ROS 2 publishing of raw & filtered data at **20 Hz**
-  * micro‑ROS executor: service and diagnostics spin within `loop()` (10 ms slice)
-
-* **Thread Safety**
-  Shared `raw_readings` and `filtered_readings` arrays protected by a FreeRTOS **binary semaphore** for atomic access.
-
-* **micro‑ROS Integration**
-
-  * Publishes `sensor_msgs/Range` on `/ultrasonic_sensor/<name>/{raw,filtered}` with accurate ROS 2 timestamps
-  * Health status via `diagnostic_msgs/DiagnosticStatus` on `/diagnostics`
-  * **servo\_cam\_service** (custom `Servocam.srv`) for future camera gimbal control via LEDC PWM
-
-* **Memory & CPU Efficiency**
-
-  * Fixed-size frame ID and message buffers; only one `malloc` remains (ROS 2 compatibility)
-  * No blocking delays in sensor loops; all timing via `millis()` and task delays
+   * [Includes & Dependencies](#includes--dependencies)
+   * [FreeRTOS Scheduling](#freertos-scheduling)
+   * [Inter-task Synchronization](#inter-task-synchronization)
+   * [micro-ROS Integration](#micro-ros-integration)
+5. [Kalman Filter Algorithm](#kalman-filter-algorithm)
+6. [Hardware Setup](#hardware-setup)
+7. [PlatformIO Build & Deployment](#platformio-build--deployment)
+8. [Operation & Validation](#operation--validation)
+9. [API Reference](#api-reference)
+10. [Troubleshooting](#troubleshooting)
+11. [License](#license)
 
 ---
 
-## 🛠 Hardware Requirements
+## 1. Introduction
 
-| Component        | Connection                         |
-| ---------------- | ---------------------------------- |
-| ESP32 (Upesy)    | USB / 5 V & GND                    |
-| HC‑SR04 Triggers | GPIO 4, 17, 18, 32, 21 → VCC (5 V) |
-| HC‑SR04 Echoes   | GPIO 16, 14, 22, 35, 25 → GND      |
-| Status LED       | GPIO 2 → LED → Resistor → GND      |
-| Servo PWM (opt.) | GPIO 26 (LEDC Timer 0, Channel 0)  |
+SkySonar provides continuous 360° distance awareness via five HC‑SR04 sensors. It uses an adaptive Kalman filter to smooth measurement noise and FreeRTOS to guarantee deterministic timing. Data is published over ROS 2 topics in real time, facilitating seamless integration into research autonomy stacks.
 
-> Ensure all grounds (ESP32, sensors, servo) are common.
+## 2. System Architecture
 
-### Voltage Divider for Echo Pins
+* **Sensors**: HC‑SR04 ultrasonic modules, one pointing in each cardinal direction and downward.
+* **Controller**: ESP32 Wroom (Upesy) running Arduino framework under PlatformIO.
+* **RTOS**: FreeRTOS coordinates three main tasks for sensing, publishing, and service handling.
+* **Middleware**: micro-ROS client publishes `sensor_msgs/Range` and `diagnostic_msgs/DiagnosticStatus`, offers a `Servocam` service.
 
-The HC‑SR04 echo output swings up to 5 V, but the ESP32 GPIO pins are only 3.3 V tolerant. To protect the ESP32, each echo line must use a simple resistor divider:
+Diagram:
+
+```
++--------------+      +-----------+      +---------+
+| HC-SR04 (5x) |-->Voltage Divider-->ESP32-->FreeRTOS-->micro-ROS-->ROS2 Agent
++--------------+      +-----------+      +---------+
+```
+
+## 3. Electronics Design
+
+### Voltage Divider
+
+To interface 5 V echo outputs with 3.3 V ESP32 GPIOs, each echo pin uses a resistor divider (R1, R2):
 
 ```
 V_out = V_in × R2 / (R1 + R2)
 ```
 
-For example:
-
-* R1 (between sensor echo and ESP32 pin): 1.8 kΩ
-* R2 (between ESP32 pin and ground):     3.3 kΩ
-
-This yields:
+Choosing R1 = 1.8 kΩ and R2 = 3.3 kΩ yields:
 
 ```
-V_out = 5 V × (3.3 kΩ / (1.8 kΩ + 3.3 kΩ)) ≈ 3.2 V
+V_out ≈ 5 V × (3.3 kΩ / 5.1 kΩ) ≈ 3.2 V
 ```
 
-Use resistor values in the 1 kΩ–10 kΩ range to limit current without degrading signal edges. Ensure each echo pin has its own divider network.
+Component selection:
 
----
+* R1 ∈ \[1–10 kΩ]
+* R2 ∈ \[1–10 kΩ]
 
-## ⚙️ Software Setup
+Ensure tight tolerance (±1%) for consistent thresholds.
 
-### 1. Clone & Open Project
+## 4. Software Architecture
 
+### Includes & Dependencies
+
+```cpp
+#include <Arduino.h>
+#include <NewPing.h>                // Ultrasonic sensor driver
+#include <micro_ros_platformio.h>   // micro-ROS Arduino transport
+#include <rcl/rcl.h>
+#include <rclc/rclc.h>
+#include <rclc/executor.h>
+#include <sensor_msgs/msg/range.h>
+#include <diagnostic_msgs/msg/diagnostic_status.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/semphr.h>
+#include <driver/ledc.h>             // Servo PWM
+#include <servocam_interfaces/srv/servocam.h>
+#include <math.h>
+```
+
+Key features:
+
+* Fixed-size buffers for frame IDs and messages
+* Single `malloc` for diagnostics compatibility
+* Build flags in `platformio.ini` enable smooth compilation
+
+### FreeRTOS Scheduling
+
+Three concurrent tasks:
+
+| Task               | Priority | Period  | Function                                          |
+| ------------------ | -------- | ------- | ------------------------------------------------- |
+| sensorReadingTask  | 3        | 50 ms   | Non-blocking ping, Kalman update, store readings  |
+| publishingTask     | 2        | 50 ms   | Publish raw & filtered `sensor_msgs/Range` topics |
+| micro-ROS executor | 1        | \~10 ms | Spin executor for services & diagnostics callback |
+
+Each uses:
+
+```c
+vTaskDelay(pdMS_TO_TICKS(period_ms));
+```
+
+to yield CPU time.
+
+### Inter-task Synchronization
+
+A binary semaphore `data_mutex` protects shared arrays:
+
+```c
+// Producer (sensorReadingTask)
+xSemaphoreTake(data_mutex, portMAX_DELAY);
+raw_readings[i] = raw;
+filtered_readings[i] = filtered;
+xSemaphoreGive(data_mutex);
+
+// Consumer (publishingTask)
+xSemaphoreTake(data_mutex, portMAX_DELAY);
+memcpy(local, raw_readings);
+xSemaphoreGive(data_mutex);
+```
+
+### micro-ROS Integration
+
+* **Initialization**: Serial transport via `set_microros_serial_transports(Serial)`
+* **Node & Support**:
+
+  ```c
+  ```
+
+allocator = rcl\_get\_default\_allocator();
+rclc\_support\_init(\&support, 0, NULL, \&allocator);
+rclc\_node\_init\_default(\&node, "ultrasonic\_sensor\_node", "", \&support);
+
+````
+- **Publishers**:
+  ```c
+rclc_publisher_init(&pub, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Range), topic, &qos);
+````
+
+* **Service**:
+
+  ```c
+  ```
+
+rclc\_service\_init\_default(\&servo\_srv, \&node, ROSIDL\_GET\_SRV\_TYPE\_SUPPORT(servocam\_interfaces, srv, Servocam), "servo\_cam\_service");
+
+```
+
+## 5. Kalman Filter Algorithm
+
+Each sensor uses a 1D adaptive Kalman filter:
+
+**Prediction**
+```
+
+x\_prior = x\_prev
+P\_prior = P\_prev + Q\_prev
+
+```
+
+**Update**
+```
+
+K = P\_prior / (P\_prior + R\_prev)
+x = x\_prior + K \* (z - x\_prior)
+P = (1 - K) \* P\_prior
+
+```
+
+**Adaptive Noise**
+```
+
+Innovation = z - x\_prior
+R = (1 - α) \* R\_prev + α \* Innovation^2,   α = 0.01
+Variance = MeanSquared(meas\_window)
+Q = max(Q\_min, Variance × 0.1)
+
+````
+
+This self-tuning filter adapts to changing noise characteristics without manual recalibration.
+
+## 6. Hardware Setup
+
+Follow the [Hardware Requirements](#hardware-setup) section in `README.md` for pin wiring and power.
+
+## 7. PlatformIO Build & Deployment
+
+See `platformio.ini` for dependencies and flags. Use:
 ```bash
-cd ~/Documents/PlatformIO/Projects/
-git clone https://github.com/yourusername/sky_sonar.git
-cd sky_sonar
-```
-
-### 2. Install PlatformIO
-
-* **VSCode**: Install the PlatformIO IDE extension
-* **CLI**: `pip install platformio`
-
-### 3. Configure `platformio.ini`
-
-```ini
-[env:upesy_wroom]
-platform    = espressif32
-board       = upesy_wroom
-framework   = arduino
-monitor_speed = 115200
-
-lib_deps =
-  https://github.com/micro-ROS/micro_ros_platformio
-  teckel12/NewPing@^1.9.7
-
-build_flags =
-  -I include
-  -Wno-unused-variable
-  -Wno-unused-parameter
-```
-
-### 4. Extra Packages (IDL Generation)
-
-Place your custom `Servocam.srv` in `extra_packages/servocam_interfaces/srv/Servocam.srv` and core ROS 2 IDLs (e.g. `diagnostic_msgs/msg/DiagnosticStatus.msg`) in `extra_packages/diagnostic_msgs` so PlatformIO auto‑generates message headers.
-
-### 5. Build & Flash
-
-```bash
-# Build
 pio run
-# Upload to ESP32
 pio run --target upload
-# Monitor serial output
 pio device monitor
-```
+````
 
----
+## 8. Operation & Validation
 
-## ▶️ Running & Validation
-
-1. **Start micro‑ROS Agent** on PC:
+1. Launch micro-ROS Agent:
 
    ```bash
-   ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyUSB0 -b 115200 -v
+   ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyUSB0 -b 115200
    ```
-2. **Verify Topics**:
+2. Inspect topics:
 
    ```bash
    ros2 topic list | grep ultrasonic_sensor
    ros2 topic echo /ultrasonic_sensor/downward/filtered
    ros2 topic echo /diagnostics
    ```
-3. **Call `servo_cam_service`**:
+3. Invoke servo service:
 
    ```bash
    ros2 service call /servo_cam_service servocam_interfaces/srv/Servocam "{ angle_deg: 90.0 }"
    ```
 
----
+## 9. API Reference
 
-## 🔍 Code Walkthrough
+* **Topics**:
 
-### 1. Kalman Filter Mathematics
+  * `/ultrasonic_sensor/<name>/raw` (`sensor_msgs/Range`)
+  * `/ultrasonic_sensor/<name>/filtered` (`sensor_msgs/Range`)
+  * `/diagnostics` (`diagnostic_msgs/DiagnosticStatus`)
 
-SkySonar implements a scalar Kalman filter for each sensor with the following steps:
+* **Service**:
 
-**Prediction (Time Update)**
+  * `/servo_cam_service` (`servocam_interfaces/Servocam`)
 
-```
-P = P + Q
-```
+## 10. Troubleshooting
 
-* `P` is the estimate error covariance.
-* `Q` is the process noise covariance, set adaptively based on the variance of the last 10 measurements.
+* **Diagnostics missing**: verify IDL in `extra_packages/diagnostic_msgs`
+* **Timeouts**: confirm voltage divider and echo wiring
+* **Agent disconnect**: match serial params and agent transport
 
-**Update (Measurement Update)**
+## 11. License
 
-```
-K = P / (P + R)
-x = x + K * (z - x)
-P = (1 - K) * P
-```
-
-* `z` is the new raw sensor measurement.
-* `R` is the estimated measurement noise covariance, updated by:
-
-```
-R = (1 - alpha) * R + alpha * (z - x_prior)^2,   alpha = 0.01
-```
-
-This adaptive filter balances measurement trust and prediction stability in noisy environments.
-
-### 2. FreeRTOS Task Structure
-
-Tasks are scheduled with fixed priorities to guarantee real-time behavior:
-
-| Task                 | Priority | Role                                 | Rate    |
-| -------------------- | -------- | ------------------------------------ | ------- |
-| sensorReadingTask    | 3        | Ultrasonic read + Kalman update      | 20 Hz   |
-| publishingTask       | 2        | ROS2 message packing & publishing    | 20 Hz   |
-| micro-ROS executor\* | 1        | Service callbacks & diagnostics spin | 100 Hz† |
-
-> † Executor is polled every 10 ms inside `loop()`.
-
-Each task uses `vTaskDelay()` for periodic execution without blocking other tasks.
-
-### 3. Semaphore & Thread Safety
-
-A binary semaphore `data_mutex` ensures atomic access to shared arrays:
-
-```c
-// Producer (sensorReadingTask)
-xSemaphoreTake(data_mutex, portMAX_DELAY);
-// write raw_readings[i] and filtered_readings[i]
-xSemaphoreGive(data_mutex);
-
-// Consumer (publishingTask)
-xSemaphoreTake(data_mutex, portMAX_DELAY);
-// copy into local variables for publish
-xSemaphoreGive(data_mutex);
-```
-
-This prevents concurrent read/write collisions.
-
-### 4. micro-ROS QoS & Service Handling
-
-* **Sensor topics**: Best-Effort reliability, Volatile durability (minimize latency).
-* **Diagnostics topic**: Reliable reliability, Transient Local durability (health updates always available).
-* **servo\_cam\_service**: Handled by micro-ROS executor slice for sub-10 ms response.
-
-All publishers and the service are initialized before any FreeRTOS tasks start to avoid startup races.
-
-## 🛠 Troubleshooting
-
-* **No `/diagnostics` topic**: Ensure IDL present in `extra_packages/diagnostic_msgs` and rebuild.
-* **Sensor timeouts**: Check wiring, confirm echo pins configured as inputs, verify 5 V pulse levels.
-* **micro‑ROS errors**: Match agent transport flags (`SERIAL` vs `UDP`), correct Baud and port.
-
----
-
-## 📄 License
-
-MIT © 
-# SkySonar
+MIT © Your Name
