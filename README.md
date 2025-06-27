@@ -1,5 +1,3 @@
-Here's the finalized README.md incorporating all corrections, clarifications, and enhancements based on the code and feedback:
-
 ```markdown
 # SkySonar
 
