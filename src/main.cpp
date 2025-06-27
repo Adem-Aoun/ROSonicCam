@@ -23,12 +23,10 @@ const int TRIG_PINS[]   = {4,  17, 18, 32, 21};
 const int ECHO_PINS[]   = {16, 14, 22, 35, 25};
 #define MAX_RANGE_CM 450
 
-// Fixed buffer sizes
 #define FRAME_ID_BUFFER_SIZE 30
 #define MESSAGE_BUFFER_SIZE 100
 #define DIAGNOSTICS_BUFFER_SIZE 64
 
-// NewPing sensor objects
 NewPing sensors[NUM_SENSORS] = {
   NewPing(TRIG_PINS[0], ECHO_PINS[0], MAX_RANGE_CM),
   NewPing(TRIG_PINS[1], ECHO_PINS[1], MAX_RANGE_CM),
@@ -52,7 +50,6 @@ NewPing sensors[NUM_SENSORS] = {
 #define WINDOW_SIZE 10 
 #define ALPHA 0.01f    
 
-// Non-blocking timer intervals
 #define SENSOR_CHECK_INTERVAL 5000
 #define SENSOR_READ_INTERVAL 50
 #define PUBLISH_INTERVAL 50
@@ -72,7 +69,6 @@ struct KalmanFilter {
   int window_index;    
 };
 
-// Fixed buffers
 char frame_id_buffers[NUM_SENSORS * 2][FRAME_ID_BUFFER_SIZE];
 char servo_response_buffer[MESSAGE_BUFFER_SIZE];
 char diagnostics_message_buffer[DIAGNOSTICS_BUFFER_SIZE];
@@ -84,7 +80,6 @@ SemaphoreHandle_t data_mutex;
 bool hardware_ok = true;      
 bool servo_configured = false; 
 
-// Non-blocking timers
 unsigned long last_sensor_check = 0;
 unsigned long last_diagnostics = 0;
 
@@ -265,7 +260,6 @@ void checkSensors() {
 }
 
 void publishDiagnostics() {
-  // CORRECTED: Set diagnostic status without header
   if (hardware_ok) {
     diagnostics_msg.level = diagnostic_msgs__msg__DiagnosticStatus__OK;
     const char* message = "All sensors operational";
@@ -345,7 +339,6 @@ void setup() {
   Serial.println("\n\nStarting Ultrasonic Sensor System...");
   checkSensors();
 
-  // Configure servo
   ledc_timer_config_t timer_conf = {
       .speed_mode = LEDC_LOW_SPEED_MODE,
       .duty_resolution = SERVO_RESOLUTION,
@@ -378,7 +371,6 @@ void setup() {
   RCCHECK(rclc_support_init(&support, 0, NULL, &allocator));
   RCCHECK(rclc_node_init_default(&node, "ultrasonic_sensor_node", "", &support));
 
-  // Initialize publishers with QoS profiles
   rmw_qos_profile_t sensor_qos = rmw_qos_profile_sensor_data;
   sensor_qos.reliability = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
   sensor_qos.durability = RMW_QOS_POLICY_DURABILITY_VOLATILE;
@@ -422,7 +414,6 @@ void setup() {
     filtered_readings[i] = NAN;
   }
 
-  // Initialize diagnostics publisher
   RCCHECK(rclc_publisher_init(
     &diagnostics_publisher,
     &node,
@@ -431,7 +422,6 @@ void setup() {
     &diagnostics_qos
   ));
 
-  // Initialize diagnostics message
   diagnostics_msg.name.data = (char*)malloc(DIAGNOSTICS_BUFFER_SIZE);
   diagnostics_msg.name.capacity = DIAGNOSTICS_BUFFER_SIZE;
   diagnostics_msg.name.size = 0;
@@ -442,13 +432,11 @@ void setup() {
   diagnostics_msg.hardware_id.size = 5;
   diagnostics_msg.hardware_id.capacity = 5;
 
-  // Set constant diagnostic name
   const char* name = "ultrasonic_sensor_system";
   strncpy(diagnostics_msg.name.data, name, DIAGNOSTICS_BUFFER_SIZE - 1);
   diagnostics_msg.name.data[DIAGNOSTICS_BUFFER_SIZE - 1] = '\0';
   diagnostics_msg.name.size = strlen(diagnostics_msg.name.data);
 
-  // Initialize servo service
   servo_res.success = false;
   servo_res.message.data = servo_response_buffer;
   servo_res.message.capacity = MESSAGE_BUFFER_SIZE;
