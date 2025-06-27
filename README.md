@@ -183,22 +183,55 @@ if __name__ == '__main__':
 
 ## 9. Troubleshooting <a name="troubleshooting"></a>
 
-**Kalman Filter Issues**:
-| Symptom | Solution |
-|---------|----------|
-| Slow convergence | Decrease α (0.01 → 0.005) |
-| Over-filtering | Increase Q_min (0.001 → 0.01) |
-| Noise sensitivity | Increase window size (10 → 20) |
+11. Troubleshooting 
 
-**RTOS Performance**:
-```bash
-# Monitor FreeRTOS task performance
-pio device monitor --filter send_on_enter
-[DEBUG] Task States:
-SensorPoll: 8ms/cycle
-KalmanFilter: 6ms/cycle
-PublishTask: 4ms/cycle
-```
+Symptom
+
+Cause
+
+Solution
+
+No ROS 2 topics
+
+micro-ROS agent not running or wrong port
+
+Start agent: ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyUSB0 -b115200
+
+Intermittent readings
+
+Voltage divider mismatch / loose wiring
+
+Check 1 kΩ/2 kΩ divider, secure connections
+
+Slow Kalman convergence
+
+α (alpha) too low
+
+Increase α (e.g. 0.01 → 0.02)
+
+Over-filtering
+
+Q_min too low
+
+Increase minimum process noise (Q_min: 0.001 → 0.01)
+
+Noise spikes
+
+Window size too small
+
+Increase sliding window (10 → 20 samples)
+
+Task preemption lag
+
+RTOS priority inversion
+
+Adjust FreeRTOS priorities: SensorTask > PublishTask > loop()
+
+Servo no response
+
+PWM duty delta <10
+
+Ensure commanded angle changes by ≥10 duty units
 
 ## License <a name="license"></a>
 MIT © Adem Oussama 
