@@ -46,14 +46,36 @@ graph LR
 
 ```mermaid
 flowchart TB
-    S[Sensors] --> RTOS[FreeRTOS]
-    subgraph ESP32
-    RTOS --> T1[Sensor Polling Task]
-    RTOS --> T2[Kalman Filter Task]
-    RTOS --> T3[ROS Publishing Task]
+    S1[Downward Sensor\nHC-SR04] --> SP
+    S2[Forward Sensor\nHC-SR04] --> SP
+    S3[Left Sensor\nHC-SR04] --> SP
+    S4[Right Sensor\nHC-SR04] --> SP
+    S5[Back Sensor\nHC-SR04] --> SP
+
+    subgraph ESP32[ESP32-WROOM]
+        direction TB
+        SP[Sensor Polling Task\nFreeRTOS Prio 3\n20Hz\n<5ms] -->|Raw Measurements| B[Double-Buffered\nData Store]
+        B --> KF[Kalman Filter Task\nFreeRTOS Prio 3\n20Hz\n1-2ms/sensor]
+        KF -->|Adaptive Filtering\nQ/R Noise Tuning| F[Filtered Data\nRing Buffer]
+        F --> RP[ROS Publishing Task\nFreeRTOS Prio 2\n20Hz\n<5ms]
+        RP -->|Micro-ROS| M
     end
-    T3 --> M[micro-ROS]
-    M --> R[ROS 2 Topics]
+
+    M[micro-ROS Client\nSerial/UDP] --> R[ROS 2 Agent]
+    R --> T1[/ultrasonic_sensor/downward/filtered\nsensor_msgs/Range]
+    R --> T2[/ultrasonic_sensor/forward/filtered\nsensor_msgs/Range]
+    R --> T3[/ultrasonic_sensor/left/filtered\nsensor_msgs/Range]
+    R --> T4[/ultrasonic_sensor/right/filtered\nsensor_msgs/Range]
+    R --> T5[/ultrasonic_sensor/back/filtered\nsensor_msgs/Range]
+    
+    classDef sensor fill:#e6f7ff,stroke:#1890ff;
+    classDef task fill:#f6ffed,stroke:#52c41a;
+    classDef buffer fill:#f9f0ff,stroke:#722ed1;
+    classDef ros fill:#fff7e6,stroke:#fa8c16;
+    class S1,S2,S3,S4,S5 sensor;
+    class SP,KF,RP task;
+    class B,F buffer;
+    class M,R,T1,T2,T3,T4,T5 ros;
 ```
 
 ---
@@ -184,54 +206,22 @@ if __name__ == '__main__':
 ## 9. Troubleshooting <a name="troubleshooting"></a>
 
 11. Troubleshooting 
+No ROS 2 topicsCause: micro-ROS agent not running or wrong portSolution: Start agent with:
+```bash
 
-Symptom
+ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyUSB0 -b115200
+```
+Intermittent readingsCause: Voltage divider mismatch or loose wiringSolution: Verify 1 kΩ/2 kΩ resistor divider and secure all sensor connections.
 
-Cause
+Slow Kalman convergenceCause: Low adaptation rate (α too small)Solution: Increase α in code (e.g., from 0.01 to 0.02).
 
-Solution
+Over-filteringCause: Minimum process noise (Q_min) too lowSolution: Raise Q_min (e.g., from 0.001 to 0.01).
 
-No ROS 2 topics
+Noise spikesCause: Sliding window size too smallSolution: Increase WINDOW_SIZE (e.g., from 10 to 20 samples).
 
-micro-ROS agent not running or wrong port
+RTOS preemption lagCause: Priority inversion or misconfigured task prioritiesSolution: Ensure FreeRTOS priorities: SensorTask (highest) > PublishTask > main loop.
 
-Start agent: ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyUSB0 -b115200
-
-Intermittent readings
-
-Voltage divider mismatch / loose wiring
-
-Check 1 kΩ/2 kΩ divider, secure connections
-
-Slow Kalman convergence
-
-α (alpha) too low
-
-Increase α (e.g. 0.01 → 0.02)
-
-Over-filtering
-
-Q_min too low
-
-Increase minimum process noise (Q_min: 0.001 → 0.01)
-
-Noise spikes
-
-Window size too small
-
-Increase sliding window (10 → 20 samples)
-
-Task preemption lag
-
-RTOS priority inversion
-
-Adjust FreeRTOS priorities: SensorTask > PublishTask > loop()
-
-Servo no response
-
-PWM duty delta <10
-
-Ensure commanded angle changes by ≥10 duty units
+Servo no responseCause: PWM duty change below detection thresholdSolution: Guarantee angle commands result in ≥10 duty unit change
 
 ## License <a name="license"></a>
 MIT © Adem Oussama 
