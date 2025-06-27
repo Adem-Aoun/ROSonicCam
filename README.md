@@ -1,4 +1,5 @@
-# ROSonicCam: ROS 2 Directional Ultrasonic Sensor & Servo-Controlled Camera Node for Robotics & Drones
+# ROSonicCam
+ESP32 + micro-ROS 2 node featuring directional ultrasonic sensing, Kalman filtering, FreeRTOS scheduling, and servo camera control for robotics and drones.
 
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/Adem-Aoun/SkySonar/actions)
 ![ROS2](https://img.shields.io/badge/ROS2-Humble-blue?style=flat-square)
@@ -11,8 +12,6 @@
 ![Drones](https://img.shields.io/badge/Application-Drones-yellow?style=flat-square)
 ![Obstacle Avoidance](https://img.shields.io/badge/Feature-Obstacle--Avoidance-critical?style=flat-square)
 
-
-**An ESP32-based multi-directional ultrasonic sensor platform with adaptive Kalman filtering, real-time FreeRTOS scheduling, and integrated servo control for camera positioning. Designed for seamless ROS 2 integration, ideal for autonomous robotics, UAV obstacle avoidance, and intelligent environmental perception.**
 ## Features
 
 - 📡 Five-direction ultrasonic obstacle sensing
