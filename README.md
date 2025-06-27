@@ -1,7 +1,6 @@
 # ROSonicCam: ROS 2 Directional Ultrasonic Sensor & Servo-Controlled Camera Node for Robotics & Drones
 
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/Adem-Aoun/SkySonar/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![ROS2](https://img.shields.io/badge/ROS2-Humble-blue?style=flat-square)
 ![ESP32](https://img.shields.io/badge/Platform-ESP32-black?style=flat-square)
 ![FreeRTOS](https://img.shields.io/badge/OS-FreeRTOS-green?style=flat-square)
@@ -425,5 +424,3 @@ RTOS preemption lagCause: Priority inversion or misconfigured task prioritiesSol
 
 Servo no responseCause: PWM duty change below detection thresholdSolution: Guarantee angle commands result in ≥10 duty unit change
 
-## License <a name="license"></a>
-MIT © Adem Oussama 
