@@ -44,32 +44,29 @@ graph LR
 
 ## 2. System Architecture <a name="system-architecture"></a>
 
-
-## 2. System Architecture <a name="system-architecture"></a>
-
 ```mermaid
 flowchart TB
-    S1[Downward Sensor\nHC-SR04] --> SP
-    S2[Forward Sensor\nHC-SR04] --> SP
-    S3[Left Sensor\nHC-SR04] --> SP
-    S4[Right Sensor\nHC-SR04] --> SP
-    S5[Back Sensor\nHC-SR04] --> SP
+    S1["Downward Sensor (HC-SR04)"] --> SP
+    S2["Forward Sensor (HC-SR04)"] --> SP
+    S3["Left Sensor (HC-SR04)"] --> SP
+    S4["Right Sensor (HC-SR04)"] --> SP
+    S5["Back Sensor (HC-SR04)"] --> SP
 
-    subgraph ESP32[ESP32-WROOM]
+    subgraph ESP32["ESP32-WROOM"]
         direction TB
-        SP[Sensor Polling Task\nFreeRTOS Prio 3\n20Hz\n<5ms] -->|Raw Measurements| B[Double-Buffered\nData Store]
-        B --> KF[Kalman Filter Task\nFreeRTOS Prio 3\n20Hz\n1-2ms/sensor]
-        KF -->|Adaptive Filtering\nQ/R Noise Tuning| F[Filtered Data\nRing Buffer]
-        F --> RP[ROS Publishing Task\nFreeRTOS Prio 2\n20Hz\n<5ms]
+        SP["Sensor Polling Task\n• FreeRTOS Prio 3\n• 20Hz\n• <5ms"] -->|Raw Measurements| B["Double-Buffered Data Store"]
+        B --> KF["Kalman Filter Task\n• FreeRTOS Prio 3\n• 20Hz\n• 1-2ms/sensor\n• Adaptive Q/R Tuning"]
+        KF -->|Filtered Data| F["Ring Buffer"]
+        F --> RP["ROS Publishing Task\n• FreeRTOS Prio 2\n• 20Hz\n• <5ms"]
         RP -->|Micro-ROS| M
     end
 
-    M[micro-ROS Client\nSerial/UDP] --> R[ROS 2 Agent]
-    R --> T1[/ultrasonic_sensor/downward/filtered\nsensor_msgs/Range]
-    R --> T2[/ultrasonic_sensor/forward/filtered\nsensor_msgs/Range]
-    R --> T3[/ultrasonic_sensor/left/filtered\nsensor_msgs/Range]
-    R --> T4[/ultrasonic_sensor/right/filtered\nsensor_msgs/Range]
-    R --> T5[/ultrasonic_sensor/back/filtered\nsensor_msgs/Range]
+    M["micro-ROS Client\n(Serial/UDP)"] --> R["ROS 2 Agent"]
+    R --> T1["Topic: /ultrasonic_sensor/downward/filtered\nMsg: sensor_msgs/Range"]
+    R --> T2["Topic: /ultrasonic_sensor/forward/filtered\nMsg: sensor_msgs/Range"]
+    R --> T3["Topic: /ultrasonic_sensor/left/filtered\nMsg: sensor_msgs/Range"]
+    R --> T4["Topic: /ultrasonic_sensor/right/filtered\nMsg: sensor_msgs/Range"]
+    R --> T5["Topic: /ultrasonic_sensor/back/filtered\nMsg: sensor_msgs/Range"]
     
     classDef sensor fill:#e6f7ff,stroke:#1890ff;
     classDef task fill:#f6ffed,stroke:#52c41a;
@@ -81,13 +78,13 @@ flowchart TB
     class M,R,T1,T2,T3,T4,T5 ros;
 ```
 
----
 
 ---
 
 ## 3. Real-Time OS Implementation <a name="real-time-os-implementation"></a>
 
-### FreeRTOS Task Scheduling
+## FreeRTOS Task Scheduling
+
 | Task               | Priority | Frequency | Execution Time | Description                     |
 |--------------------|----------|-----------|----------------|---------------------------------|
 | `SensorPollTask`   | 3 (High) | 20Hz      | 5-10ms         | Reads all 5 sensors sequentially|
@@ -95,16 +92,115 @@ flowchart TB
 | `PublishTask`      | 2        | 20Hz      | 3-5ms          | Publishes to ROS topics         |
 | `MainLoop`         | 1 (Low)  | 10Hz      | Variable       | Services and diagnostics        |
 
-### Inter-Task Communication
-```c
-// Shared data protection
-xSemaphoreTake(data_mutex, portMAX_DELAY);
-// Critical section: Update sensor data
-xSemaphoreGive(data_mutex);
+## Scheduling Algorithm: Preemptive Priority-based Scheduling
 
-// Task synchronization
-xTaskNotifyGive(KalmanFilterTask);  // Trigger after sensor read
+FreeRTOS implements a **preemptive, priority-based scheduling algorithm** with the following characteristics:
+
+```mermaid
+flowchart LR
+    S[Scheduler] --> P[Priority Queue]
+    P --> H[Highest Priority Ready Task]
+    H --> R[Running]
+    R -->|Preemption| NP[New Higher Priority Task?]
+    NP -->|Yes| H
+    NP -->|No| C[Continue Execution]
+    C -->|Block/Suspend| W[Wait for Event]
+    W --> T[Time or Event Trigger]
+    T --> P
 ```
+
+**Key Scheduling Principles**:
+1. **Priority-Based**: Tasks with higher priority (higher number) always preempt lower priority tasks
+2. **Preemptive**: Running task is immediately interrupted when higher priority task becomes ready
+3. **Round-Robin**: Tasks of equal priority share CPU time in time slices (configurable)
+4. **Deterministic**: Worst-case execution times (WCET) guarantee real-time performance
+
+### Scheduling Sequence for SkySonar
+
+```mermaid
+gantt
+    title FreeRTOS Task Execution Timeline (50ms Period)
+    dateFormat  ms
+    axisFormat %S.%L
+    section Tasks
+    SensorPollTask   :a1, 0, 10ms
+    KalmanFilterTask :a2, after a1, 10ms
+    PublishTask      :a3, after a2, 5ms
+    MainLoop         :a4, 0, 35ms
+```
+
+**Timeline Explanation**:
+1. **0-10ms**: `SensorPollTask` (Prio 3) reads all 5 sensors
+2. **10-20ms**: `KalmanFilterTask` (Prio 3) processes sensor data
+3. **20-25ms**: `PublishTask` (Prio 2) sends data to ROS
+4. **0-35ms**: `MainLoop` (Prio 1) runs in background when CPU available
+
+## Inter-Task Communication
+
+### Mutex Protection for Shared Data
+```c
+// Acquire mutex before accessing shared data
+xSemaphoreTake(data_mutex, portMAX_DELAY);
+
+// Critical section: Update sensor data
+raw_readings[0] = sensor_value_0;
+// ... update all sensors
+
+// Release mutex when done
+xSemaphoreGive(data_mutex);
+```
+
+### Task Synchronization
+```c
+// In SensorPollTask after reading all sensors:
+xTaskNotifyGive(KalmanFilterTask);  // Trigger Kalman processing
+
+// In KalmanFilterTask:
+ulTaskNotifyTake(pdTRUE, portMAX_DELAY);  // Wait for notification
+```
+
+**Synchronization Flow**:
+1. Sensor task completes readings and notifies Kalman task
+2. Kalman task wakes immediately (same priority)
+3. Publishing task waits until Kalman completes
+4. Main loop runs only when no other tasks need CPU
+
+## Real-Time Performance Analysis
+
+**Schedulability Test**:
+```
+Total CPU Utilization = Σ(Task Execution Time / Period)
+= (10ms/50ms) + (10ms/50ms) + (5ms/50ms) + (35ms/100ms)
+= 0.2 + 0.2 + 0.1 + 0.35 = 0.85 (85% < 100%)
+```
+*System is schedulable with 15% idle margin*
+
+**Worst-Case Scenario**:
+- All tasks ready simultaneously
+- Execution order: SensorPoll → KalmanFilter → PublishTask → MainLoop
+- Maximum latency: 10ms + 10ms + 5ms = 25ms
+
+## Key Design Considerations
+
+1. **Priority Assignment**:
+   - Sensor and Kalman tasks at same highest priority
+   - Publishing at medium priority
+   - System services at lowest priority
+
+2. **Minimizing Latency**:
+   - Direct task notification for immediate wakeup
+   - Mutex protection with minimal critical sections
+   - Avoidance of priority inversion
+
+3. **Determinism**:
+   - Worst-case execution time measurement
+   - Fixed-size buffers (no dynamic allocation)
+   - Minimal interrupt usage
+
+4. **Robustness**:
+   - Timeout handling on all blocking calls
+   - Stack overflow protection
+   - Watchdog monitoring
 
 ---
 
@@ -207,10 +303,102 @@ if __name__ == '__main__':
 | `/servo_cam_service` | `servocam_interfaces/srv/Servocam` | Pan/tilt control |
 
 ---
+## 9. Building, Flashing, and Operating SkySonar
 
-## 9. Troubleshooting <a name="troubleshooting"></a>
+### PlatformIO Setup
 
-11. Troubleshooting 
+#### platformio.ini Configuration
+```ini
+[env:upesy_wroom]
+platform = espressif32
+board = upesy_wroom
+framework = arduino
+monitor_speed = 115200
+lib_deps = 
+    teckel12/NewPing@^1.9.7
+    micro-ROS/micro_ros_platformio@^0.4.0
+build_flags = 
+    -I include
+    -Wno-unused-variable
+    -Wno-unused-parameter
+```
+
+### Building and Flashing
+
+1. **Install dependencies**:
+```bash
+pio lib install
+```
+
+2. **Build the firmware**:
+```bash
+pio run
+```
+
+3. **Flash to ESP32**:
+```bash
+pio run -t upload
+```
+
+4. **Monitor serial output**:
+```bash
+pio device monitor
+```
+
+### Micro-ROS Agent Setup
+
+#### Install micro-ROS Agent
+```bash
+# For ROS 2 Humble
+sudo apt install ros-humble-micro-ros-agent
+
+# For ROS 2 Foxy
+sudo apt install ros-foxy-micro-ros-agent
+```
+
+#### Start Agent
+```bash
+ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyUSB0 -b 115200
+```
+
+### System Operation
+
+#### Startup Sequence
+1. Hardware initialization
+2. Sensor diagnostic check
+3. FreeRTOS task creation
+4. micro-ROS node initialization
+5. Continuous sensor reading and publishing
+
+#### Expected Serial Output
+```
+Starting Ultrasonic Sensor System...
+
+--- Sensor Status Report ---
+Sensor downward (TRIG:4, ECHO:16): OK (1.23m)
+Sensor forward (TRIG:17, ECHO:14): OK (0.87m)
+...
+----------------------------
+
+System initialization complete!
+micro-ROS connection active
+Hardware status: ALL SENSORS OK
+Servo status: CONFIGURED
+
+Topics:
+  /ultrasonic_sensor/downward/raw
+  /ultrasonic_sensor/downward/filtered
+  ...
+Service: /servo_cam_service
+
+[downward] Raw: 1.23m | Filtered: 1.22m
+[forward] Raw: 0.87m | Filtered: 0.86m
+...
+```
+
+
+## 10. Troubleshooting <a name="troubleshooting"></a>
+Troubleshooting 
 No ROS 2 topicsCause: micro-ROS agent not running or wrong portSolution: Start agent with:
 ```bash
 
@@ -230,4 +418,3 @@ Servo no responseCause: PWM duty change below detection thresholdSolution: Guara
 
 ## License <a name="license"></a>
 MIT © Adem Oussama 
-```
