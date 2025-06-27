@@ -1,3 +1,4 @@
+📘 [Live Project Website](https://adem-aoun.github.io/ROSonicCam)
 # ROSonicCam
 ESP32 + micro-ROS 2 node featuring directional ultrasonic sensing, Kalman filtering, FreeRTOS scheduling, and servo camera control for robotics and drones.
 
