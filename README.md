@@ -2,7 +2,6 @@
 
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/Adem-Aoun/SkySonar/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![ROS 2](https://img.shields.io/badge/ROS%202-Foxy%20%7C%20Humble-brightgreen)](https://docs.ros.org)
 ![ROS2](https://img.shields.io/badge/ROS2-Humble-blue?style=flat-square)
 ![ESP32](https://img.shields.io/badge/Platform-ESP32-black?style=flat-square)
 ![FreeRTOS](https://img.shields.io/badge/OS-FreeRTOS-green?style=flat-square)
