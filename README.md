@@ -23,6 +23,14 @@ ESP32 + micro-ROS 2 node featuring directional ultrasonic sensing, Kalman filter
 - ⏱️ FreeRTOS-based concurrent tasks (sensor polling, ROS 2 publishing)
 - 🎥 Servo-based camera angle control (ROS 2 service)
 - 🔌 Fully ROS 2 (micro-ROS) compatible over Serial/UDP
+### 🚀 Plug & Play Setup
+
+1. Clone the repo  
+2. Open in [PlatformIO](https://platformio.org/) (VS Code or CLI)  
+3. Upload to ESP32 with one click  
+4. Connect micro-ROS agent  
+5. Done ✅
+
 ---
 
 ## 📋 Table of Contents
