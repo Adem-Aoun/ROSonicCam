@@ -81,15 +81,6 @@ flowchart TB
     R --> T3["Topic: /ultrasonic_sensor/left/filtered\nMsg: sensor_msgs/Range"]
     R --> T4["Topic: /ultrasonic_sensor/right/filtered\nMsg: sensor_msgs/Range"]
     R --> T5["Topic: /ultrasonic_sensor/back/filtered\nMsg: sensor_msgs/Range"]
-    
-    classDef sensor fill:#e6f7ff,stroke:#1890ff;
-    classDef task fill:#f6ffed,stroke:#52c41a;
-    classDef buffer fill:#f9f0ff,stroke:#722ed1;
-    classDef ros fill:#fff7e6,stroke:#fa8c16;
-    class S1,S2,S3,S4,S5 sensor;
-    class SP,KF,RP task;
-    class B,F buffer;
-    class M,R,T1,T2,T3,T4,T5 ros;
 ```
 
 
