@@ -28,11 +28,11 @@
 5-directional sensing configuration:
 ```mermaid
 graph LR
-    F[Forward • 0°] --> C[Controller]
-    L[Left • 90°] --> C
-    R[Right • 270°] --> C
-    B[Back • 180°] --> C
-    D[Downward • -90°] --> C
+    F[Forward ] --> C[Controller]
+    L[Left ] --> C
+    R[Right ] --> C
+    B[Back ] --> C
+    D[Downward ] --> C
 ```
 
 **Key Specifications**:
@@ -162,109 +162,6 @@ def main():
 if __name__ == '__main__':
     main()
 ```
-
-### Collision Warning System
-```python
-#!/usr/bin/env python3
-import rclpy
-from rclpy.node import Node
-from sensor_msgs.msg import Range
-from std_msgs.msg import Bool
-
-class CollisionWarning(Node):
-    def __init__(self):
-        super().__init__('collision_warning')
-        self.warning_pub = self.create_publisher(Bool, '/collision_warning', 10)
-        
-        self.create_subscription(
-            Range, 
-            '/ultrasonic_sensor/forward/filtered', 
-            self.forward_cb, 
-            10
-        )
-        
-        self.safe_distance = 0.8  # meters
-        self.warning_state = False
-
-    def forward_cb(self, msg):
-        if math.isnan(msg.range):
-            return
-            
-        new_state = msg.range < self.safe_distance
-        
-        if new_state != self.warning_state:
-            self.warning_state = new_state
-            warning_msg = Bool()
-            warning_msg.data = self.warning_state
-            self.warning_pub.publish(warning_msg)
-            status = "WARNING!" if new_state else "CLEAR"
-            self.get_logger().info(f"Collision status: {status}")
-
-def main():
-    rclpy.init()
-    node = CollisionWarning()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
-
-if __name__ == '__main__':
-    main()
-```
-
-### Terrain Analysis Node (Drones)
-```python
-#!/usr/bin/env python3
-import rclpy
-from rclpy.node import Node
-from sensor_msgs.msg import Range
-from std_msgs.msg import Float32
-
-class TerrainAnalyzer(Node):
-    def __init__(self):
-        super().__init__('terrain_analyzer')
-        self.terrain_pub = self.create_publisher(Float32, '/terrain_roughness', 10)
-        
-        self.downward_sub = self.create_subscription(
-            Range,
-            '/ultrasonic_sensor/downward/filtered',
-            self.downward_cb,
-            10
-        )
-        
-        self.readings = []
-        self.window_size = 20  # 1 second at 20Hz
-
-    def downward_cb(self, msg):
-        if math.isnan(msg.range):
-            return
-            
-        self.readings.append(msg.range)
-        if len(self.readings) > self.window_size:
-            self.readings.pop(0)
-            
-        if len(self.readings) == self.window_size:
-            roughness = max(self.readings) - min(self.readings)
-            msg = Float32()
-            msg.data = roughness
-            self.terrain_pub.publish(msg)
-            self.get_logger().info(
-                f"Terrain roughness: {roughness:.3f}m",
-                throttle_duration_sec=2
-            )
-
-def main():
-    rclpy.init()
-    node = TerrainAnalyzer()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
-
-if __name__ == '__main__':
-    main()
-```
-
----
-
 ## 8. API Reference <a name="api-reference"></a>
 
 ### ROS 2 Topics
@@ -302,8 +199,6 @@ SensorPoll: 8ms/cycle
 KalmanFilter: 6ms/cycle
 PublishTask: 4ms/cycle
 ```
-
----
 
 ## License <a name="license"></a>
 MIT © Adem Oussama 
