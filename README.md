@@ -1,10 +1,10 @@
-# SkySonar: Directional Ultrasonic Sensor Node for Robotics & Drones
+# ROSonicCam: ROS 2 Directional Ultrasonic Sensor & Servo-Controlled Camera Node for Robotics & Drones
 
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/Adem-Aoun/SkySonar/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![ROS 2](https://img.shields.io/badge/ROS%202-Foxy%20%7C%20Humble-brightgreen)](https://docs.ros.org)
 
-**ESP32-based directional ultrasonic sensor platform with adaptive Kalman filtering and FreeRTOS scheduling**
+**An ESP32-based multi-directional ultrasonic sensor platform with adaptive Kalman filtering, real-time FreeRTOS scheduling, and integrated servo control for camera positioning. Designed for seamless ROS 2 integration, ideal for autonomous robotics, UAV obstacle avoidance, and intelligent environmental perception.**
 
 ---
 
