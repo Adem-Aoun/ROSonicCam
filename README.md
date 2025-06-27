@@ -3,6 +3,16 @@
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/Adem-Aoun/SkySonar/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![ROS 2](https://img.shields.io/badge/ROS%202-Foxy%20%7C%20Humble-brightgreen)](https://docs.ros.org)
+![ROS2](https://img.shields.io/badge/ROS2-Humble-blue?style=flat-square)
+![ESP32](https://img.shields.io/badge/Platform-ESP32-black?style=flat-square)
+![FreeRTOS](https://img.shields.io/badge/OS-FreeRTOS-green?style=flat-square)
+![Ultrasonic](https://img.shields.io/badge/Sensors-Ultrasonic-blueviolet?style=flat-square)
+![Kalman Filter](https://img.shields.io/badge/Filtering-Kalman--Filter-orange?style=flat-square)
+![Servo Control](https://img.shields.io/badge/Actuation-Servo--Control-red?style=flat-square)
+![Robotics](https://img.shields.io/badge/Application-Robotics-brightgreen?style=flat-square)
+![Drones](https://img.shields.io/badge/Application-Drones-yellow?style=flat-square)
+![Obstacle Avoidance](https://img.shields.io/badge/Feature-Obstacle--Avoidance-critical?style=flat-square)
+
 
 **An ESP32-based multi-directional ultrasonic sensor platform with adaptive Kalman filtering, real-time FreeRTOS scheduling, and integrated servo control for camera positioning. Designed for seamless ROS 2 integration, ideal for autonomous robotics, UAV obstacle avoidance, and intelligent environmental perception.**
 
