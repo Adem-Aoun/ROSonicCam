@@ -1,3 +1,28 @@
+---
+layout: default
+title: ROSonicCam
+description: ROS 2-compatible ultrasonic sensor and camera control node for drones and robots.
+---
+
+<style>
+h1, h2, h3 {
+  color: #2c3e50;
+}
+p {
+  font-size: 16px;
+  line-height: 1.6;
+}
+.feature-badge {
+  display: inline-block;
+  background-color: #007acc;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 13px;
+  margin: 2px;
+}
+</style>
+
 # ROSonicCam
 
 **ROSonicCam** is a lightweight, ROS 2-compatible embedded sensor node designed for directional obstacle detection and camera actuation in drones and mobile robots. Built on the **ESP32 microcontroller**, it combines **ultrasonic sensing**, **servo-based camera control**, and **adaptive Kalman filtering**, all managed under a **FreeRTOS**-driven architecture.
